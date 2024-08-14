@@ -7,16 +7,6 @@ from scipy.stats import kurtosis, skew, kstest, moment
 from scipy.signal import correlate, get_window
 from scipy.signal.windows import tukey
 
-def estimated_autocorrelation(x):
-    n = len(x)
-    variance = x.var()
-    x = x-x.mean()
-    r = np.correlate(x, x, mode = 'full')[-n:]
-    #assert N.allclose(r, N.array([(x[:n-k]*x[-(n-k):]).sum() for k in range(n)]))
-    result = r/(variance*(np.arange(n, 0, -1)))
-    return result
-
-
 if __name__=='__main__':
     t0 = 1126257415
     t1 = 1126259462.4
@@ -30,8 +20,8 @@ if __name__=='__main__':
     plt.xlabel("Time [s]")
     plt.title("Comparison of short time intervals")
     plt.show()
-
     kstest(data[c:c*2], 'norm')
+
 
     mean = []
     std = []
@@ -46,7 +36,7 @@ if __name__=='__main__':
         moment_3.append(moment(k, 4))
         # for j in np.array_split(data, 5):
         #     kstest(k, j)
-    plt.plot(mean,color='red')
+    #plt.plot(mean,color='red')
     plt.plot(moment_3)
     plt.show()
 
@@ -58,6 +48,7 @@ if __name__=='__main__':
     print(np.mean(data[c:]))
     print(np.std(data[c:]))
     print(skew(data[c:]))
+
     acf_array = acf(data, fft=True, nlags=10000)
     plt.plot(acf_array)
     plt.show()
@@ -67,6 +58,14 @@ if __name__=='__main__':
     #plt.plot(arr)
     #plt.show()
     strain = TimeSeries(data, t0=t0, sample_rate=4096, unit='strain')
+
+    print(strain)
+
+    fig = plt.figure(2)
+    ax  = fig.add_subplot(111)
+    plt.show()
+    exit()
+
 
     lasd2 = strain.asd(fftlength=4, method="median")
     plot = lasd2.plot()

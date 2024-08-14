@@ -3,7 +3,22 @@ import numpy as np
 import matplotlib.pyplot as plt
 import statsmodels.tsa.stattools as smt
 import statsmodels.api as sm
+from scipy.stats import ks_2samp
 
+def compute_p_value_matrix(partitions):
+    N = len(partitions)
+    # Initialize an NxN matrix to store p-values
+    p_value_matrix = np.zeros((N, N))
+
+    # Perform the KS test on each pair of distributions
+    for i in range(N):
+        for j in range(i, N):
+            # KS test between distributions[i] and distributions[j]
+            ks_statistic, p_value = ks_2samp(partitions[i], partitions[j])
+            p_value_matrix[i, j] = p_value
+            p_value_matrix[j, i] = p_value  # Fill the symmetric element
+
+    return p_value_matrix
 
 if __name__ == "__main__":
 
@@ -35,11 +50,13 @@ if __name__ == "__main__":
     # Mean function
     mean_value = np.mean(y)
     print("Mean Function:", mean_value)
+    total_std = np.std(y)
+    print("Standard Deviation:", total_std)
 
     #Two-point autocorrelation
     # Compute autocorrelation for multiple lags
 
-    lags = 10000  # Number of lags to include
+    lags = 40000  # Number of lags to include
     autocorr_values = sm.tsa.acf(y, nlags=lags, fft=True)
     x_lag = np.arange(0,(lags+1)/4096,1/4096)
     #np.savetxt('data/autocorr_values.txt',autocorr_values)
@@ -52,6 +69,7 @@ if __name__ == "__main__":
     #plt.axhline(1.96*np.var(autocorr_values))
     #plt.axhline(1.96/np.sqrt(len(autocorr_values)),color='r')
     confidence_level = 1.96/np.sqrt(len(autocorr_values))
+    print(f'confidence level: {confidence_level}')
     plt.fill_between(x_lag,-confidence_level,confidence_level,color='cyan',alpha=0.2)
     plt.xlabel('Lag [s]')
 
@@ -59,15 +77,21 @@ if __name__ == "__main__":
     #Check for stationarity
     mean = []
     std = []
-    splits = 100
-    print('timescale:',4096/splits,'[s]')
-    for k in np.array_split(y, splits):
-        mean.append(np.mean(k))
-        std.append(np.std(k))
-
-    plt.figure(3)
-    plt.plot(mean)
-    plt.xlabel('Partition #')
+    splits = [0.0001,0.001,0.01,0.1,1,10]
+    d = 40936
+    splits = [d//10,d//5,d//2,d,2*d,4*d]
+    print(splits)
+    y_splits = []
+    for s in splits:
+        timescale = 40936/s
+        print(f'timescale: {timescale:.2} s')
+        for k in np.array_split(y, s):
+            mean.append(np.mean(k))
+            std.append(np.std(k))
+        plt.figure(f'{s} partitions',figsize=(16,6))
+        plt.title(f'Timescale {timescale:.2} s')
+        plt.plot(mean/total_std,'o')
+        plt.xlabel('Partition #')
 
     plt.show()
     exit()
