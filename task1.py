@@ -22,6 +22,7 @@ if __name__=='__main__':
     t1 = 1126259462.4
     data = np.loadtxt('data/H-H1_GWOSC_4KHZ_R1-1126257415-4096.txt')
     c = int(len(data)/8000)
+    print(c)
     x = np.linspace(0, 0.5, num=c)
     plt.plot(x, data[c:c*2])
     plt.plot(x, data[80000:c+80000])
@@ -45,6 +46,7 @@ if __name__=='__main__':
         moment_3.append(moment(k, 4))
         # for j in np.array_split(data, 5):
         #     kstest(k, j)
+    plt.plot(mean,color='red')
     plt.plot(moment_3)
     plt.show()
 
@@ -60,10 +62,10 @@ if __name__=='__main__':
     plt.plot(acf_array)
     plt.show()
 
-    corr = correlate(data, data1, method='fft')
-    arr = plt.acorr(data, maxlags=10000)
-    plt.plot(arr)
-    plt.show()
+    #corr = correlate(data, data1, method='fft')
+    #arr = plt.acorr(data, maxlags=100)
+    #plt.plot(arr)
+    #plt.show()
     strain = TimeSeries(data, t0=t0, sample_rate=4096, unit='strain')
 
     lasd2 = strain.asd(fftlength=4, method="median")

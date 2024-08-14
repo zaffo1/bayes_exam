@@ -5,37 +5,6 @@ import statsmodels.tsa.stattools as smt
 import statsmodels.api as sm
 
 
-
-def next_pow_two(n):
-    """
-    find the next power of 2 given n
-    """
-    i = 1
-    while i < n:
-        i = i << 1
-    return i
-
-def autocorrelation(x, norm=True):
-    """
-    compute the autocorrelation function of an array
-    """
-    x = np.atleast_1d(x)
-    if len(x.shape) != 1:
-        raise ValueError("invalid dimensions for 1D autocorrelation function")
-    n = next_pow_two(len(x))
-
-    # Compute the FFT and then (from that) the auto-correlation function
-    f = np.fft.fft(x - np.mean(x), n=2 * n)
-    acf = np.fft.ifft(f * np.conjugate(f))[: len(x)].real
-    acf /= 4 * n
-
-    # Optionally normalize
-    if norm:
-        acf /= acf[0]
-
-    return acf
-
-
 if __name__ == "__main__":
 
     start_time = time.time()
@@ -45,9 +14,21 @@ if __name__ == "__main__":
 
     y = np.loadtxt('data/H-H1_GWOSC_4KHZ_R1-1126257415-4096.txt')
     print('Total number of datapoints: ',len(y))
-    y = y[:100000]
-    plt.figure(1)
-    plt.plot(y)
+    x = np.linspace(0,4096,4096*4096)
+    #plt.figure(0,figsize=(10,4))
+    #plt.plot(y,'o',color='violet')
+    #plt.title('Entire acquisition')
+    #plt.ylabel('Strain')
+    #plt.xlabel('Time [s]')
+
+    #plot first second of acquisition
+    x1 = np.linspace(0,1,4096)
+    y1 = y[:len(x1)]
+    plt.figure(1,figsize=(16,6))
+    plt.plot(x1,y1,'.',color='slateblue')
+    plt.title('First second of acquisition')
+    plt.ylabel('Strain')
+    plt.xlabel('Time [s]')
 
     print(y.var())
 
@@ -55,24 +36,44 @@ if __name__ == "__main__":
     mean_value = np.mean(y)
     print("Mean Function:", mean_value)
 
-
+    #Two-point autocorrelation
     # Compute autocorrelation for multiple lags
 
-
-    # Compute autocorrelation
-    lags = 2000  # Number of lags to include
+    lags = 10000  # Number of lags to include
     autocorr_values = sm.tsa.acf(y, nlags=lags, fft=True)
+    x_lag = np.arange(0,(lags+1)/4096,1/4096)
     #np.savetxt('data/autocorr_values.txt',autocorr_values)
     #autocorr_values = np.loadtxt('data/autocorr_values.txt')
-    plt.figure(2)
-    plt.plot(autocorr_values,'o', color='red')
-    plt.xlabel('Lag')
+    plt.figure(2,figsize=(16,6))
+    plt.title('Autocorrelation Function')
+    plt.plot(x_lag,autocorr_values,'.', color='royalblue')
+    #print(autocorr_values)
+    #print(1.96*autocorr_values.var())
+    #plt.axhline(1.96*np.var(autocorr_values))
+    #plt.axhline(1.96/np.sqrt(len(autocorr_values)),color='r')
+    confidence_level = 1.96/np.sqrt(len(autocorr_values))
+    plt.fill_between(x_lag,-confidence_level,confidence_level,color='cyan',alpha=0.2)
+    plt.xlabel('Lag [s]')
 
 
+    #Check for stationarity
+    mean = []
+    std = []
+    splits = 100
+    print('timescale:',4096/splits,'[s]')
+    for k in np.array_split(y, splits):
+        mean.append(np.mean(k))
+        std.append(np.std(k))
 
-    print(autocorr_values)
+    plt.figure(3)
+    plt.plot(mean)
+    plt.xlabel('Partition #')
+
     plt.show()
     exit()
+
+
+
     # Augmented Dickey-Fuller test
     adf_result = smt.adfuller(y)
 
