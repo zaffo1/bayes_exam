@@ -7,6 +7,17 @@ from scipy.stats import kurtosis, skew, kstest, moment
 from scipy.signal import correlate, get_window
 from scipy.signal.windows import tukey
 
+
+def estimated_autocorrelation(x):
+    n = len(x)
+    variance = x.var()
+    x = x-x.mean()
+    r = np.correlate(x, x, mode = 'full')[-n:]
+    #assert N.allclose(r, N.array([(x[:n-k]*x[-(n-k):]).sum() for k in range(n)]))
+    result = r/(variance*(np.arange(n, 0, -1)))
+    return result
+
+
 if __name__=='__main__':
     t0 = 1126257415
     t1 = 1126259462.4

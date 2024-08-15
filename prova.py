@@ -5,13 +5,54 @@ import scipy
 
 def plot_psd_comparison(data):
     fs = 4096
-    NFFT = 4 * fs  # Use 4 seconds of data for each Fourier transform
+    NFFT = 4*fs  # Use 4 seconds of data for each Fourier transform
     NOVL = int(0.5 * NFFT)  # The number of points of overlap between segments
     psd_window = scipy.signal.windows.tukey(NFFT, alpha=1./4)
 
     # Compute the PSD using Welch's method
     freqs, Pxx_H1 = welch(data, fs=fs, nperseg=NFFT, window=psd_window, noverlap=NOVL)
 
+
+    # Define the frequency range of interest (for example, 500 Hz to 1500 Hz)
+    freq_range = (150,300)
+
+    # Select the indices corresponding to the desired frequency range
+    freq_indices = np.where((freqs >= freq_range[0]) & (freqs <= freq_range[1]))[0]
+
+    # Extract the PSD for the selected frequency range
+    Pxx_H1_selected = np.zeros_like(Pxx_H1)
+    Pxx_H1_selected[freq_indices] = Pxx_H1[freq_indices]
+
+    # Compute the inverse Fourier transform of the selected PSD to obtain the ACF
+    acf = np.fft.irfft(Pxx_H1_selected)
+
+    # Normalize the ACF (optional, depending on what you're looking for)
+    acf = acf / acf[0]
+
+    # Plot the PSD
+    plt.figure(figsize=(14, 6))
+    plt.subplot(1, 2, 1)
+    plt.plot(freqs, 10 * np.log10(Pxx_H1), label='Original PSD')
+    plt.plot(freqs[freq_indices], 10 * np.log10(Pxx_H1[freq_indices]), label='Selected PSD', color='r')
+    plt.title('Power Spectral Density')
+    plt.xlabel('Frequency [Hz]')
+    plt.ylabel('Power/Frequency [dB/Hz]')
+    plt.legend()
+    plt.grid()
+
+    # Plot the ACF
+    plt.subplot(1, 2, 2)
+    plt.stem(acf)
+    plt.title('Autocorrelation Function (ACF)')
+    plt.xlabel('Lag')
+    plt.ylabel('Autocorrelation')
+    plt.grid()
+
+    plt.tight_layout()
+    plt.show()
+
+
+    exit()
     # Compute the PSD with no window and no averaging
     nowin_freqs, nowin_Pxx_H1,  = welch(data, fs=fs, nperseg=NFFT, window='boxcar')
 

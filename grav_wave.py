@@ -57,7 +57,7 @@ if __name__ == "__main__":
     # Compute autocorrelation for multiple lags
 
     lags = 40000  # Number of lags to include
-    autocorr_values = sm.tsa.acf(y, nlags=lags, fft=True)
+    autocorr_values, conf = sm.tsa.acf(y, nlags=lags, fft=True,alpha=0.05)
     x_lag = np.arange(0,(lags+1)/4096,1/4096)
     #np.savetxt('data/autocorr_values.txt',autocorr_values)
     #autocorr_values = np.loadtxt('data/autocorr_values.txt')
@@ -69,8 +69,12 @@ if __name__ == "__main__":
     #plt.axhline(1.96*np.var(autocorr_values))
     #plt.axhline(1.96/np.sqrt(len(autocorr_values)),color='r')
     confidence_level = 1.96/np.sqrt(len(autocorr_values))
+    print(f'confidence level: {conf}')
     print(f'confidence level: {confidence_level}')
-    plt.fill_between(x_lag,-confidence_level,confidence_level,color='cyan',alpha=0.2)
+    print(conf.shape)
+    #plt.fill_between(x_lag,-confidence_level,confidence_level,color='cyan',alpha=0.2)
+    plt.fill_between(x_lag,conf[:,0]-autocorr_values,conf[:,1]-autocorr_values,color='red',alpha=0.2)
+
     plt.xlabel('Lag [s]')
 
 

@@ -1,11 +1,8 @@
 from gwpy.timeseries import TimeSeries
 import matplotlib.pyplot as plt
 import numpy as np
-from statsmodels.tsa.stattools import acf
 import statsmodels.api as sm
-from scipy.stats import kurtosis, skew, kstest, moment
-from scipy.signal import correlate, get_window
-from scipy.signal.windows import tukey
+from scipy.stats import kstest
 
 if __name__=='__main__':
     t0 = 1126257415
@@ -21,7 +18,8 @@ if __name__=='__main__':
     print(t1-t0)
     strain = TimeSeries(data, t0=t0, sample_rate=4096, unit='strain')
 
-    print(strain)
+    #print(strain)
+    print(kstest(data, 'norm'))
 
     plot = strain.plot()
     ax = plot.gca()
@@ -30,8 +28,22 @@ if __name__=='__main__':
     ax.set_title('LIGO-Hanford strain data around GW150914')
     ax.axvline(t1, color='orange', linestyle='--')
     plot.refresh()
+    plot.savefig('figures/whole_timeseries.png')
     plot.show()
 
+    #sample mean
+    sample_mean = strain.mean()
+    print(f'Sample mean = {sample_mean}')
+
+    #two-point autocorrelation
+    plt.figure('acf',figsize=(16,6))
+    autocorr_values = sm.tsa.acf(data, nlags=10000, fft=True)
+
+    plt.title('Autocorrelation Function')
+    plt.plot(autocorr_values,'.', color='royalblue')
+
+    plt.savefig('figures/acf.png')
+    plt.show()
 
     #Amplitude Spectral Density
     lasd2 = strain.asd(fftlength=8, method="median")
@@ -40,4 +52,13 @@ if __name__=='__main__':
     ax.set_ylabel('Amplitude Spectral Density')
     ax.set_xlim(10, 1400)
     ax.set_ylim(1e-24, 1e-20)
+    plot.show(warn=False)
+
+    #Power Spectral Density
+    psd2 = strain.psd(fftlength=8, method="median")
+    plot = psd2.plot()
+    ax = plot.gca()
+    ax.set_ylabel('Power Spectral Density')
+    ax.set_xlim(10, 1400)
+    #ax.set_ylim(1e-24, 1e-20)
     plot.show(warn=False)
