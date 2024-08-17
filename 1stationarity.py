@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import statsmodels.api as sm
 
 def partitions_mean(splits,data):
     plt.figure('partitions',figsize=(14,7))
@@ -25,6 +26,24 @@ def partitions_mean(splits,data):
     plt.savefig('figures/partitions_mean')
     plt.show()
 
+
+def partitions_acf(data,n_split):
+    plt.figure('partitions',figsize=(14,7))
+    plt.suptitle(f'ACF computer over {n_split} different partitions')
+    timescale = 4096/n_split
+    print(f'timescale: {timescale:.2} s')
+    for j, k in enumerate(np.array_split(data, n_split)):
+        acf = sm.tsa.acf(k, nlags=4096, fft=True)
+        plt.plot(acf,'.',label=f'partition {j+1}')
+        plt.xlabel('Lag')
+        plt.ylabel('ACF')
+        plt.legend()
+    plt.tight_layout()
+    plt.savefig('figures/partitions_acf')
+    plt.show()
+
+
+
     return
 
 if __name__ == "__main__":
@@ -42,6 +61,7 @@ if __name__ == "__main__":
     print("Standard Deviation:", total_std)
 
     #Check for stationarity
-    splits = [10,100,200]
+    splits = [10,100,1000]
     partitions_mean(splits,data)
 
+    partitions_acf(data,10)

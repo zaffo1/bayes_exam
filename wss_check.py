@@ -17,7 +17,7 @@ def plot_psd_comparison(data):
 
     plt.figure(figsize=(8, 5))
     ax = plt.axes()
-    plt.xscale('log', base=2)
+    #plt.xscale('log', base=2)
     plt.yscale('log', base=10)
 
     # Plotting PSD with and without window
@@ -37,6 +37,7 @@ def plot_psd_comparison(data):
     plt.legend(loc='best')
     plt.title('PSD for the full 4096 seconds')
     plt.show()
+    exit()
     # ACF computation (unchanged)
     from statsmodels.tsa.stattools import acf
     acf_array = acf(Pxx_H1, fft=True, nlags=50)
