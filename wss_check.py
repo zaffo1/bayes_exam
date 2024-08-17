@@ -36,12 +36,12 @@ def plot_psd_comparison(data):
     ax.tick_params(axis='x', which='minor', direction='out')
     plt.legend(loc='best')
     plt.title('PSD for the full 4096 seconds')
-    #plt.show()
+    plt.show()
     # ACF computation (unchanged)
     from statsmodels.tsa.stattools import acf
     acf_array = acf(Pxx_H1, fft=True, nlags=50)
     acf_nowin = acf(nowin_Pxx_H1, fft=True, nlags=50)
-    acf_small = acf(Pxx_H1[np.where(freqs == 50)[0][0]:np.where(freqs == 512)[0][0]], fft=True, nlags=50)
+    acf_small = acf(Pxx_H1[np.where(freqs == 50)[0][0]:np.where(freqs == 300)[0][0]], fft=True, nlags=50)
 
     plt.plot(acf_array,'o', label='Windowed')
     plt.plot(acf_nowin,'o', label='Leakage')

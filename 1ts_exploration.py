@@ -13,23 +13,23 @@ if __name__=='__main__':
     # starting GPS 1126257415 duration 4096
     data = np.loadtxt('data/H-H1_GWOSC_4KHZ_R1-1126257415-4096.txt')
     print(len(data))
-    print(len(data)/4996,'total seconds')
-    print(4996**2)
+    print(len(data)/4096,'total seconds')
+    print(4096**2)
     print(t1-t0)
     strain = TimeSeries(data, t0=t0, sample_rate=4096, unit='strain')
 
     #print(strain)
     print(kstest(data, 'norm'))
 
-    plot = strain.plot()
-    ax = plot.gca()
-    ax.set_ylabel('Gravitational-wave amplitude [strain]')
-    ax.set_epoch(1126259462)
-    ax.set_title('LIGO-Hanford strain data around GW150914')
-    ax.axvline(t1, color='orange', linestyle='--')
-    plot.refresh()
-    plot.savefig('figures/whole_timeseries.png')
-    plot.show()
+    #plot = strain.plot()
+    #ax = plot.gca()
+    #ax.set_ylabel('Gravitational-wave amplitude [strain]')
+    #ax.set_epoch(1126259462)
+    #ax.set_title('LIGO-Hanford strain data around GW150914')
+    #ax.axvline(t1, color='orange', linestyle='--')
+    #plot.refresh()
+    #plot.savefig('figures/whole_timeseries.png')
+    #plot.show()
 
     #sample mean
     sample_mean = strain.mean()
@@ -37,14 +37,18 @@ if __name__=='__main__':
 
     #two-point autocorrelation
     plt.figure('acf',figsize=(16,6))
-    autocorr_values = sm.tsa.acf(data, nlags=10000, fft=True)
+    autocorr_values = sm.tsa.acf(data, nlags=4096, fft=True)
+    #autocorr_values, conf = sm.tsa.acf(data, nlags=1000, fft=True,alpha=0.05)
+    #plt.fill_between(np.arange(len(autocorr_values)),conf[:,0]-autocorr_values,conf[:,1]-autocorr_values,color='red',alpha=0.2)
 
     plt.title('Autocorrelation Function')
     plt.plot(autocorr_values,'.', color='royalblue')
-
+    plt.xlabel('Lag')
+    plt.ylabel('ACF')
     plt.savefig('figures/acf.png')
     plt.show()
 
+    exit()
     #Amplitude Spectral Density
     lasd2 = strain.asd(fftlength=8, method="median")
     plot = lasd2.plot()
