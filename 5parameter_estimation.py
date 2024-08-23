@@ -33,7 +33,7 @@ if __name__=='__main__':
     H1_analysis_data = strain.crop(analysis_start , analysis_start+duration)
 
     H1_analysis_data.plot()
-    plt.ylabel('GW Amplitude [Strain]')
+    plt.ylabel('GW Amplitude ')
     plt.savefig('figures/4seconds_around_GW150914')
     plt.show()
     #This doesn't tell us much of course! It is dominated by the low frequency noise.
@@ -130,7 +130,7 @@ if __name__=='__main__':
     result_short = bilby.run_sampler(
         likelihood, prior, sampler='dynesty', outdir='shortL', label="GW150914",
         conversion_function=bilby.gw.conversion.generate_all_bbh_parameters,
-          clean=True,)#,
+          clean=False,)#,
         #n_effective = 5000, dlogz=3 # <- Arguments are used to make things fast - not recommended for general use
 
         #)
@@ -161,6 +161,8 @@ if __name__=='__main__':
     lower_bound_q = np.quantile(q, 0.05)
     upper_bound_q = np.quantile(q, 0.95)
     median_q = np.quantile(q, 0.5)
+    print("q = {} with a 90% C.I = {} -> {}".format(median_q, lower_bound_q, upper_bound_q))
+
     fig, ax = plt.subplots()
     ax.hist(result_short.posterior["mass_ratio"], bins=50)
     ax.axvspan(lower_bound_q, upper_bound_q, color='C2', alpha=0.4)
@@ -170,8 +172,14 @@ if __name__=='__main__':
 
 
     result_short.plot_corner(parameters=["chirp_mass", "mass_ratio"], prior=True, save=False)
-    # plt.show()
+    plt.savefig('figures/corner_plot_M_q')
+    plt.show()
 
     parameters = dict(mass_1=36.2, mass_2=29.1)
     fig = result_short.plot_corner(parameters, save=False)
+    plt.savefig('figures/corner_plot_m1_m2')
     plt.show()
+
+
+    print("ln Bayes factor = {} +/- {}".format(
+        result_short.log_bayes_factor, result_short.log_evidence_err))

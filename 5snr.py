@@ -20,6 +20,7 @@ if __name__ == '__main__':
 
 	strain = TimeSeries(hdata, delta_t=1/4096, epoch=t0) # epoch = Time of the first sample in seconds.
 
+	# supress low freqeuncy behavior which can introduce numerical artefacts
 	strain = highpass(strain, 15.0)
 	# strain = resample_to_delta_t(strain, 1.0/2048)
 
@@ -50,14 +51,14 @@ if __name__ == '__main__':
 	# below this frequency.
 
 
-
-
     #Modify a PSD such that the impulse response associated with its inverse square root is no
     # longer than max_filter_len time samples.
     # In practice this corresponds to a coarse graining or smoothing of the PSD.
 	psd = inverse_spectrum_truncation(psd, int(4 * conditioned.sample_rate),
 									low_frequency_cutoff=15)
 
+
+	# MAKE YOUR SIGNAL MODEL
 
 	M_chirp = numpy.linspace(25, stop=35, num=100)
 	q = numpy.linspace(0.5, stop=1, num=10)
@@ -68,8 +69,8 @@ if __name__ == '__main__':
 	# for i in tqdm(range(0, len(M_chirp))):
 		# for j in range(0, len(q)):
 			# Get a frequency domain waveform
-	M_chirp = 25.34
-	q = 0.83
+	M_chirp = 23.28#25.34
+	q = 0.84#0.83
 
 	sptilde, sctilde = get_fd_waveform(approximant="TaylorF2",
 							 mass1=mass1_from_mchirp_q(M_chirp, q),
@@ -89,13 +90,13 @@ if __name__ == '__main__':
 	template = sp.cyclic_time_shift(sp.start_time)
 			# print("starting")
 
-	hp, hc = get_td_waveform(approximant="SEOBNRv4_opt",
-					 mass1=36,
-					 mass2=36,
-					 delta_t=conditioned.delta_t,
-					 f_lower=20)
-	hp.resize(len(conditioned))
-	template1 = hp.cyclic_time_shift(hp.start_time)
+	#hp, hc = get_td_waveform(approximant="SEOBNRv4_opt",
+	#				 mass1=36,
+	#				 mass2=36,
+	#				 delta_t=conditioned.delta_t,
+	#				 f_lower=20)
+	#hp.resize(len(conditioned))
+	#template1 = hp.cyclic_time_shift(hp.start_time)
 
 	snr = matched_filter(template, conditioned,
 					 psd=psd, low_frequency_cutoff=20)
@@ -153,40 +154,42 @@ if __name__ == '__main__':
 	# Shift the template to the peak time
 	dt = time - conditioned.start_time
 	aligned = template.cyclic_time_shift(dt)
-	aligned1 = template1.cyclic_time_shift(dt)
+	#aligned1 = template1.cyclic_time_shift(dt)
 
 	# scale the template so that it would have SNR 1 in this data
 	aligned /= sigma(aligned, psd=psd, low_frequency_cutoff=20.0)
-	aligned1 /= sigma(aligned1, psd=psd, low_frequency_cutoff=20.0)
+	#aligned1 /= sigma(aligned1, psd=psd, low_frequency_cutoff=20.0)
 
 	# Scale the template amplitude and phase to the peak value
 	aligned = (aligned.to_frequencyseries() * snrp).to_timeseries()
 	aligned.start_time = conditioned.start_time
-	aligned1 = (aligned1.to_frequencyseries() * snrp).to_timeseries()
-	aligned1.start_time = conditioned.start_time
+	#aligned1 = (aligned1.to_frequencyseries() * snrp).to_timeseries()
+	#aligned1.start_time = conditioned.start_time
 
 	# We do it this way so that we can whiten both the template and the data
 	white_data = (conditioned.to_frequencyseries() / psd**0.5).to_timeseries()
 	white_template = (aligned.to_frequencyseries() / psd**0.5).to_timeseries()
-	white_template1 = (aligned1.to_frequencyseries() / psd**0.5).to_timeseries()
+	#white_template1 = (aligned1.to_frequencyseries() / psd**0.5).to_timeseries()
 
 	white_data = white_data.highpass_fir(30., 512).lowpass_fir(300, 512)
 	white_template = white_template.highpass_fir(30, 512).lowpass_fir(300, 512)
-	white_template1 = white_template1.highpass_fir(30, 512).lowpass_fir(300, 512)
+	#white_template1 = white_template1.highpass_fir(30, 512).lowpass_fir(300, 512)
 
 	# Select the time around the merger
 	white_data = white_data.time_slice(t1-.2, t1+.1)
 	white_template = white_template.time_slice(t1-.2, t1+.1)
-	white_template1 = white_template1.time_slice(t1-.2, t1+.1)
+	#white_template1 = white_template1.time_slice(t1-.2, t1+.1)
 
 	pylab.figure(figsize=[15, 3])
 	pylab.plot(white_data.sample_times, white_data, label="Data")
-	pylab.plot(white_template1.sample_times, white_template1, label="SEOBNRv4_opt")
+	#pylab.plot(white_template1.sample_times, white_template1, label="SEOBNRv4_opt")
 	pylab.plot(white_template.sample_times, white_template, label="TaylorF2")
 	pylab.xlabel("Time (s)")
 	pylab.title("Comparison between data and models (whitened and bandpassed)")
 	pylab.legend()
 	pylab.show()
+
+
 	'''
 	subtracted = conditioned - aligned
 
