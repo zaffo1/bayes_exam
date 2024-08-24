@@ -117,12 +117,14 @@ if __name__ == '__main__':
 	# is 90 degrees out of phase. Since the phase of a signal may be
 	# anything, we choose to maximize over the phase of the signal.
 
-	# pylab.figure(figsize=[10, 4])
+	pylab.figure(figsize=[15, 3])
 	pylab.plot(snr.sample_times, abs(snr))
 	pylab.title('The SNR computed for the full timeseries')
 	pylab.ylabel('Signal-to-noise')
 	pylab.xlabel('Time (s)')
-	# pylab.show()
+	pylab.tight_layout()
+	pylab.savefig('figures/snr.png')
+	pylab.show()
 
 
 	peak = abs(snr).numpy().argmax()
@@ -185,8 +187,10 @@ if __name__ == '__main__':
 	#pylab.plot(white_template1.sample_times, white_template1, label="SEOBNRv4_opt")
 	pylab.plot(white_template.sample_times, white_template, label="TaylorF2")
 	pylab.xlabel("Time (s)")
-	pylab.title("Comparison between data and models (whitened and bandpassed)")
+	pylab.title("Comparison between data and model (whitened and bandpassed)")
 	pylab.legend()
+	pylab.tight_layout()
+	pylab.savefig('figures/data_vs_model.png')
 	pylab.show()
 
 
