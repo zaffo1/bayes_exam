@@ -1,41 +1,39 @@
-import pylab
-from pycbc.catalog import Merger
+# Code adapted from https://github.com/gwastro/PyCBC-Tutorials/blob/master/tutorial/3_WaveformMatchedFilter.ipynb
+import numpy
+import matplotlib.pyplot as plt
 from pycbc import types, fft
 from pycbc.conversions import mass1_from_mchirp_q, mass2_from_mchirp_q
 from pycbc.types.timeseries import TimeSeries
 from pycbc.psd import interpolate, inverse_spectrum_truncation
-from pycbc.waveform import get_td_waveform, get_fd_waveform
-from pycbc.filter import resample_to_delta_t, highpass
-from pycbc.filter import matched_filter
-from pycbc.filter import sigma
-import numpy
-import matplotlib.pyplot as plt
-from tqdm import tqdm
+from pycbc.waveform import get_fd_waveform, get_td_waveform
+from pycbc.filter import matched_filter, highpass, sigma
 
 
 if __name__ == '__main__':
 	t0 = 1126257415
 	t1 = 1126259462.4
 	hdata = numpy.loadtxt('data/H-H1_GWOSC_4KHZ_R1-1126257415-4096.txt')
-
 	strain = TimeSeries(hdata, delta_t=1/4096, epoch=t0) # epoch = Time of the first sample in seconds.
 
+	# 1. Preconditioning the data
 	# supress low freqeuncy behavior which can introduce numerical artefacts
 	strain = highpass(strain, 15.0)
-	# strain = resample_to_delta_t(strain, 1.0/2048)
 
-	pylab.plot(strain.sample_times, strain)
-	pylab.xlabel('Time (s)')
-	pylab.show()
+	#plt.plot(strain.sample_times, strain)
+	#plt.xlabel('Time (s)')
+	#plt.show()
 
-    # Remove given seconds from either end of time series
+    # Remove given seconds from either end of time series (to remove spike in the data at the boundaries)
 	conditioned = strain.crop(2, 2)
 
-	pylab.plot(conditioned.sample_times, conditioned)
-	pylab.xlabel('Time (s)')
-	pylab.show()
+	#plt.plot(conditioned.sample_times, conditioned)
+	#plt.xlabel('Time (s)')
+	#plt.show()
 
-	# Estimate the power spectral density
+	# 2. Estimate the power spectral density
+
+	# Optimal matched filtering requires weighting the frequency components of the potential
+	# signal and data by the noise amplitude.
 
 	# We use 4 second samples of our time series in Welch method.
 	psd = conditioned.psd(4)
@@ -49,54 +47,70 @@ if __name__ == '__main__':
 	# Since the data has been highpassed above 15 Hz, and will have low values
 	# below this we need to inform the function to not include frequencies
 	# below this frequency.
-
-
-    #Modify a PSD such that the impulse response associated with its inverse square root is no
-    # longer than max_filter_len time samples.
-    # In practice this corresponds to a coarse graining or smoothing of the PSD.
 	psd = inverse_spectrum_truncation(psd, int(4 * conditioned.sample_rate),
 									low_frequency_cutoff=15)
 
 
-	# MAKE YOUR SIGNAL MODEL
+	# 3. make your signal model
 
-	M_chirp = numpy.linspace(25, stop=35, num=100)
-	q = numpy.linspace(0.5, stop=1, num=10)
+	# Conceptually, matched filtering involves laying the potential signal over your
+	# data and integrating (after weighting frequencies correctly).
+	# If there is a signal in the data that aligns with your 'template',
+	# you will get a large value when integrated over.
+
+	# In this case we "know" what the signal parameters are. In a search
+	# we would grid over the parameters and calculate the SNR time series
+	# for each one
 	Masses = []
 	peaks = []
 	times = []
-	m = 36 # Solar masses
-	# for i in tqdm(range(0, len(M_chirp))):
-		# for j in range(0, len(q)):
-			# Get a frequency domain waveform
-	M_chirp = 23.28#25.34
-	q = 0.84#0.83
 
+	M_chirp = 23.28
+	q = 0.84
+
+	'''
+	# Get a frequency domain waveform
 	sptilde, sctilde = get_fd_waveform(approximant="TaylorF2",
 							 mass1=mass1_from_mchirp_q(M_chirp, q),
 							 mass2=mass2_from_mchirp_q(M_chirp, q),
 							 delta_f=1.0/4,
 							 f_lower=20)
 
-			# FFT it to the time-domain
+	# FFT it to the time-domain
 	delta_t = 1/4096
 	tlen = int(1.0 / delta_t / sptilde.delta_f)
 	sptilde.resize(tlen/2 + 1)
 	sp = TimeSeries(types.zeros(tlen), delta_t=delta_t)
 	fft.ifft(sptilde, sp)
+	'''
 
-			# Resize the vector to match our data
+	sp, sc = get_td_waveform(approximant="TaylorF2",
+						mass1=mass1_from_mchirp_q(M_chirp, q),
+						mass2=mass2_from_mchirp_q(M_chirp, q),
+						delta_t=conditioned.delta_t,
+						f_lower=20)
+
+
+	# We will resize the vector to match our data
 	sp.resize(len(conditioned))
-	template = sp.cyclic_time_shift(sp.start_time)
-			# print("starting")
 
-	#hp, hc = get_td_waveform(approximant="SEOBNRv4_opt",
-	#				 mass1=36,
-	#				 mass2=36,
-	#				 delta_t=conditioned.delta_t,
-	#				 f_lower=20)
-	#hp.resize(len(conditioned))
-	#template1 = hp.cyclic_time_shift(hp.start_time)
+	# The waveform begins at the start of the vector, so if we want the
+	# SNR time series to correspond to the approximate merger location
+	# we need to shift the data so that the merger is approximately at the
+	# first bin of the data.
+
+	# This function rotates the vector by a fixed amount of time.
+	# It treats the data as if it were on a ring. Note that
+	# time stamps are *not* in general affected, but the true
+	# position in the vector is.
+
+	# By convention waveforms returned from `get_td_waveform` have their
+	# merger stamped with time zero, so we can use the start time to
+	# shift the merger into position
+	template = sp.cyclic_time_shift(sp.start_time)
+
+
+	#4. calculating the signal-to-noise time series
 
 	snr = matched_filter(template, conditioned,
 					 psd=psd, low_frequency_cutoff=20)
@@ -116,16 +130,14 @@ if __name__ == '__main__':
 	# The imaginary portion corresponds to filtering with a template that
 	# is 90 degrees out of phase. Since the phase of a signal may be
 	# anything, we choose to maximize over the phase of the signal.
-
-	pylab.figure(figsize=[15, 3])
-	pylab.plot(snr.sample_times, abs(snr))
-	pylab.title('The SNR computed for the full timeseries')
-	pylab.ylabel('Signal-to-noise')
-	pylab.xlabel('Time (s)')
-	pylab.tight_layout()
-	pylab.savefig('figures/snr.png')
-	pylab.show()
-
+	plt.figure(figsize=[12, 4])
+	plt.plot(snr.sample_times, abs(snr), color = 'navy')
+	plt.title('The SNR computed for the full timeseries')
+	plt.ylabel('SNR')
+	plt.xlabel('Time (s)')
+	plt.tight_layout()
+	plt.savefig('figures/snr.png')
+	plt.show()
 
 	peak = abs(snr).numpy().argmax()
 	snrp = snr[peak]
@@ -134,82 +146,48 @@ if __name__ == '__main__':
 	peaks.append(snrp)
 	times.append(time)
 
-	print("We found a signal at {}s with SNR {}".format(time,
-														abs(snrp)))
-	'''
-	Masses = numpy.asarray(Masses)
-	peaks = numpy.asarray(peaks)
-	times = numpy.asarray(times)
-	numpy.save("Masses", Masses)
-	numpy.save("peaks", peaks)
-	numpy.save("times", times)
+	print(f"We found a signal at {time}s with SNR {abs(snrp)}")
 
-	n, bins, patches = plt.hist(times, 50, density=True, facecolor='g', alpha=0.75)
-	plt.xlabel('GPS Times')
-	plt.ylabel('#')
-	plt.title('Histogram of SNR peaks')
-	plt.show()
-	# The time, amplitude, and phase of the SNR peak tell us how to align
-	# our proposed signal with the data.
-	'''
+	# 5. Aligning and Subtracting the Proposed Signal
+	# In the previous section we found a peak in the signal-to-noise for a proposed binary black hole merger.
+	# We can use this SNR peak to align our proposal to the
 
 	# Shift the template to the peak time
 	dt = time - conditioned.start_time
 	aligned = template.cyclic_time_shift(dt)
-	#aligned1 = template1.cyclic_time_shift(dt)
 
 	# scale the template so that it would have SNR 1 in this data
 	aligned /= sigma(aligned, psd=psd, low_frequency_cutoff=20.0)
-	#aligned1 /= sigma(aligned1, psd=psd, low_frequency_cutoff=20.0)
 
 	# Scale the template amplitude and phase to the peak value
 	aligned = (aligned.to_frequencyseries() * snrp).to_timeseries()
 	aligned.start_time = conditioned.start_time
-	#aligned1 = (aligned1.to_frequencyseries() * snrp).to_timeseries()
-	#aligned1.start_time = conditioned.start_time
+
+
+	# 6. Visualize the overlap between the signal and data
+	#To compare the data an signal on equal footing,
+	# and to concentrate on the frequency range that is important.
+	# We will whiten both the template and the data,
+	# and then bandpass both the data and template between 30-300 Hz.
+	# In this way, any signal that is in the data is transformed in the same way that the template is.
 
 	# We do it this way so that we can whiten both the template and the data
 	white_data = (conditioned.to_frequencyseries() / psd**0.5).to_timeseries()
 	white_template = (aligned.to_frequencyseries() / psd**0.5).to_timeseries()
-	#white_template1 = (aligned1.to_frequencyseries() / psd**0.5).to_timeseries()
 
 	white_data = white_data.highpass_fir(30., 512).lowpass_fir(300, 512)
 	white_template = white_template.highpass_fir(30, 512).lowpass_fir(300, 512)
-	#white_template1 = white_template1.highpass_fir(30, 512).lowpass_fir(300, 512)
 
 	# Select the time around the merger
 	white_data = white_data.time_slice(t1-.2, t1+.1)
 	white_template = white_template.time_slice(t1-.2, t1+.1)
-	#white_template1 = white_template1.time_slice(t1-.2, t1+.1)
 
-	pylab.figure(figsize=[15, 3])
-	pylab.plot(white_data.sample_times, white_data, label="Data")
-	#pylab.plot(white_template1.sample_times, white_template1, label="SEOBNRv4_opt")
-	pylab.plot(white_template.sample_times, white_template, label="TaylorF2")
-	pylab.xlabel("Time (s)")
-	pylab.title("Comparison between data and model (whitened and bandpassed)")
-	pylab.legend()
-	pylab.tight_layout()
-	pylab.savefig('figures/data_vs_model.png')
-	pylab.show()
-
-
-	'''
-	subtracted = conditioned - aligned
-
-	# Plot the original data and the subtracted signal data
-
-	for data, title in [(conditioned, 'Original H1 Data'),
-						(subtracted, 'Signal Subtracted from H1 Data')]:
-
-		t, f, p = data.whiten(4, 4).qtransform(.001, logfsteps=100, qrange=(8, 8), frange=(20, 512))
-		pylab.figure(figsize=[15, 3])
-		pylab.title(title)
-		pylab.pcolormesh(t, f, p**0.5, vmin=1, vmax=6)
-		pylab.yscale('log')
-		pylab.xlabel('Time (s)')
-		pylab.ylabel('Frequency (Hz)')
-		pylab.xlim(t1 - 2, t1 + 1)
-		pylab.show()
-
-	'''
+	plt.figure(figsize=[12, 5])
+	plt.plot(white_data.sample_times, white_data, label="Data")
+	plt.plot(white_template.sample_times, white_template, label="TaylorF2", color='crimson')
+	plt.xlabel("Time (s)")
+	plt.title("Comparison between data and model (whitened and bandpassed)")
+	plt.legend()
+	plt.tight_layout()
+	plt.savefig('figures/data_vs_model.png')
+	plt.show()
