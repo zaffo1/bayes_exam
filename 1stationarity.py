@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import statsmodels.api as sm
 
 def partitions_mean(splits,data):
-    plt.figure('partitions',figsize=(14,7))
+    plt.figure('partitions',figsize=(10,6))
     plt.suptitle('Mean function over partitions')
     for j, s in enumerate(splits):
         mean = []
@@ -28,7 +28,7 @@ def partitions_mean(splits,data):
 
 
 def partitions_acf(data,n_split):
-    plt.figure('partitions',figsize=(14,7))
+    plt.figure('partitions',figsize=(10,5))
     plt.suptitle(f'ACF computer over {n_split} different partitions')
     timescale = 4096/n_split
     print(f'timescale: {timescale:.2} s')
@@ -37,7 +37,7 @@ def partitions_acf(data,n_split):
         plt.plot(acf,'.',label=f'partition {j+1}')
         plt.xlabel('Lag')
         plt.ylabel('ACF')
-        plt.legend()
+        plt.legend(loc='upper right')
     plt.tight_layout()
     plt.savefig('figures/partitions_acf')
     plt.show()

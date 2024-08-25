@@ -21,22 +21,40 @@ if __name__=='__main__':
     #print(strain)
     print(kstest(data, 'norm'))
 
-    #plot = strain.plot()
-    #ax = plot.gca()
-    #ax.set_ylabel('Gravitational-wave amplitude [strain]')
-    #ax.set_epoch(1126259462)
-    #ax.set_title('LIGO-Hanford strain data around GW150914')
-    #ax.axvline(t1, color='orange', linestyle='--')
-    #plot.refresh()
-    #plot.savefig('figures/whole_timeseries.png')
-    #plot.show()
+    '''
+    plot = strain.plot(figsize=[10,4], color='slateblue')
+    ax = plot.gca()
+    ax.set_ylabel('Gravitational-wave amplitude (strain)')
+    ax.set_epoch(t1)
+    ax.set_title('LIGO-Hanford strain data around GW150914')
+    ax.axvline(t1, color='crimson', linestyle='--')
+    plot.refresh()
+    plot.savefig('figures/whole_timeseries.png')
+    plot.show()
+    '''
+
+    #zoom into the first 4 seconds
+    '''
+    plot = strain.plot(figsize=[10,4], color='slateblue')
+    ax = plot.gca()
+    ax.set_ylabel('Gravitational-wave amplitude (strain)')
+    ax.set_epoch(t1)
+    ax.set_title('LIGO-Hanford strain data around GW150914')
+    ax.axvline(t1, color='crimson', linestyle='--')
+    ax.set_xlim(t0,t0+4)
+    ax.set_ylim(-0.6e-18,0.6e-18)
+    plot.refresh()
+    plot.savefig('figures/first4s_timeseries.png')
+    plot.show()
+    '''
+
 
     #sample mean
     sample_mean = strain.mean()
     print(f'Sample mean = {sample_mean}')
 
     #two-point autocorrelation
-    plt.figure('acf',figsize=(16,6))
+    plt.figure('acf',figsize=(9,5))
     autocorr_values = sm.tsa.acf(data, nlags=4096, fft=True)
     #autocorr_values, conf = sm.tsa.acf(data, nlags=1000, fft=True,alpha=0.05)
     #plt.fill_between(np.arange(len(autocorr_values)),conf[:,0]-autocorr_values,conf[:,1]-autocorr_values,color='red',alpha=0.2)
@@ -45,24 +63,6 @@ if __name__=='__main__':
     plt.plot(autocorr_values,'.', color='royalblue')
     plt.xlabel('Lag')
     plt.ylabel('ACF')
+    plt.tight_layout()
     plt.savefig('figures/acf.png')
     plt.show()
-
-    exit()
-    #Amplitude Spectral Density
-    lasd2 = strain.asd(fftlength=8, method="median")
-    plot = lasd2.plot()
-    ax = plot.gca()
-    ax.set_ylabel('Amplitude Spectral Density')
-    ax.set_xlim(10, 1400)
-    ax.set_ylim(1e-24, 1e-20)
-    plot.show(warn=False)
-
-    #Power Spectral Density
-    psd2 = strain.psd(fftlength=8, method="median")
-    plot = psd2.plot()
-    ax = plot.gca()
-    ax.set_ylabel('Power Spectral Density')
-    ax.set_xlim(10, 1400)
-    #ax.set_ylim(1e-24, 1e-20)
-    plot.show(warn=False)
