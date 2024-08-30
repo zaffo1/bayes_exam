@@ -65,8 +65,8 @@ if __name__ == '__main__':
 	peaks = []
 	times = []
 
-	M_chirp = 23.28
-	q = 0.84
+	M_chirp = 25.29#23.28
+	q = 0.83#0.84
 
 	'''
 	# Get a frequency domain waveform

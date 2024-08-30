@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 
 import bilby
 from bilby.gw.prior import UniformInComponentsChirpMass, UniformInComponentsMassRatio
-from bilby.core.prior import Uniform
+from bilby.core.prior import Uniform, PowerLaw
 from bilby.gw.conversion import convert_to_lal_binary_black_hole_parameters, generate_all_bbh_parameters
 from gwpy.timeseries import TimeSeries
 
@@ -32,10 +32,10 @@ if __name__=='__main__':
 
     H1_analysis_data = strain.crop(analysis_start , analysis_start+duration)
 
-    H1_analysis_data.plot()
-    plt.ylabel('GW Amplitude ')
-    plt.savefig('figures/4seconds_around_GW150914')
-    plt.show()
+    #H1_analysis_data.plot()
+    #plt.ylabel('GW Amplitude ')
+    #plt.savefig('figures/4seconds_around_GW150914')
+    #plt.show()
     #This doesn't tell us much of course! It is dominated by the low frequency noise.
 
     # We pass the strain data to our H1 Bilby interferometer objects.
@@ -72,11 +72,15 @@ if __name__=='__main__':
 
     prior = bilby.core.prior.PriorDict()
     #prior['chirp_mass'] = UniformInComponentsChirpMass(name='chirp_mass', minimum=25.0,maximum=35.0)
-    prior['chirp_mass'] = UniformInComponentsChirpMass(name='chirp_mass', minimum=15,maximum=35)
+    #prior['chirp_mass'] = UniformInComponentsChirpMass(name='chirp_mass', minimum=15,maximum=35)
+    prior['chirp_mass'] = UniformInComponentsChirpMass(name='chirp_mass', minimum=20,maximum=35)
+
     prior['mass_ratio'] = UniformInComponentsMassRatio(name='mass_ratio', minimum=0.5, maximum=1)
 
     prior['phase'] = Uniform(name="phase", minimum=0, maximum=2*np.pi)
-    prior['geocent_time'] = Uniform(name="geocent_time", minimum=time_of_event-0.1, maximum=time_of_event+0.1)
+    #prior['geocent_time'] = Uniform(name="geocent_time", minimum=time_of_event-0.1, maximum=time_of_event+0.1)
+    prior['geocent_time'] = Uniform(name="geocent_time", minimum=analysis_start, maximum=analysis_start+duration)
+
     prior['a_1'] =  0.0
     prior['a_2'] =  0.0
     prior['tilt_1'] =  0.0
@@ -88,7 +92,7 @@ if __name__=='__main__':
     prior['theta_jn'] =  1.89694
     prior['psi'] =  0.532268
     prior['luminosity_distance'] = 412.066 #https://www.google.com/url?sa=t&source=web&rct=j&opi=89978449&url=https://dcc.ligo.org/public/0182/T2200159/002/Viviana_Caceres_LIGO_SURF_Second_Interim_Report%2520%25281%2529.pdf&ved=2ahUKEwiymb3xs4iIAxXL2wIHHTyLErMQFnoECBIQAQ&usg=AOvVaw14ayIFB2DAHWE5YC2NBlQP
-
+    #prior['luminosity_distance'] = PowerLaw(alpha=2, name='luminosity_distance', minimum=50, maximum=2000, unit='Mpc', latex_label='$d_L$')
     print(prior)
     # For Bayesian inference, we need to evaluate the likelihood.
     # In Bilby, we create a likelihood object.
@@ -130,7 +134,7 @@ if __name__=='__main__':
     result_short = bilby.run_sampler(
         likelihood, prior, sampler='dynesty', outdir='shortL', label="GW150914",
         conversion_function=bilby.gw.conversion.generate_all_bbh_parameters,
-          clean=False,)#,
+          clean=True,)#,
         #n_effective = 5000, dlogz=3 # <- Arguments are used to make things fast - not recommended for general use
 
         #)
@@ -151,11 +155,13 @@ if __name__=='__main__':
 
     # We can then plot the chirp mass in a histogram adding a region to indicate the 90% C.I.
     fig, ax = plt.subplots()
-    ax.hist(result_short.posterior["chirp_mass"], bins=50)
-    ax.axvspan(lower_bound, upper_bound, color='C1', alpha=0.4)
-    ax.axvline(median, color='C1')
+    ax.hist(result_short.posterior["chirp_mass"], bins=50,color='slateblue')
+    ax.axvspan(lower_bound, upper_bound, color='mediumpurple', alpha=0.4)
+    ax.axvline(median, color='darkviolet')
     ax.set_xlabel("chirp mass")
+    plt.savefig('figures/posterior_M.png')
     plt.show()
+
 
     # We can then plot the mass ratio in a histogram adding a region to indicate the 90% C.I.
     lower_bound_q = np.quantile(q, 0.05)
@@ -164,20 +170,25 @@ if __name__=='__main__':
     print("q = {} with a 90% C.I = {} -> {}".format(median_q, lower_bound_q, upper_bound_q))
 
     fig, ax = plt.subplots()
-    ax.hist(result_short.posterior["mass_ratio"], bins=50)
-    ax.axvspan(lower_bound_q, upper_bound_q, color='C2', alpha=0.4)
-    ax.axvline(median_q, color='C2')
+    ax.hist(result_short.posterior["mass_ratio"], bins=50, color='indigo')
+    ax.axvspan(lower_bound_q, upper_bound_q, color='mediumpurple', alpha=0.4)
+    ax.axvline(median_q, color='mediumpurple')
     ax.set_xlabel("mass ratio")
     plt.show()
 
 
-    result_short.plot_corner(parameters=["chirp_mass", "mass_ratio"], prior=True, save=False)
-    plt.savefig('figures/corner_plot_M_q')
+    result_short.plot_corner(parameters=["chirp_mass", "mass_ratio", "geocent_time", "phase"], prior=True, save=False, color='rebeccapurple')
+    plt.savefig('figures/corner_plot_M_q_gt_ph.png')
+    plt.show()
+
+
+    result_short.plot_corner(parameters=["chirp_mass", "mass_ratio"], prior=True, save=False, color='rebeccapurple')
+    plt.savefig('figures/corner_plot_M_q.png')
     plt.show()
 
     parameters = dict(mass_1=36.2, mass_2=29.1)
-    fig = result_short.plot_corner(parameters, save=False)
-    plt.savefig('figures/corner_plot_m1_m2')
+    fig = result_short.plot_corner(parameters, save=False, color='mediumvioletred')
+    plt.savefig('figures/corner_plot_m1_m2.png')
     plt.show()
 
 
