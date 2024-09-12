@@ -55,13 +55,16 @@ if __name__=='__main__':
 
     #two-point autocorrelation
     plt.figure('acf',figsize=(9,5))
-    autocorr_values = sm.tsa.acf(data, nlags=4096, fft=True)
+    autocorr_values = sm.tsa.acf(data, nlags=2*4096, fft=True)
     #autocorr_values, conf = sm.tsa.acf(data, nlags=1000, fft=True,alpha=0.05)
     #plt.fill_between(np.arange(len(autocorr_values)),conf[:,0]-autocorr_values,conf[:,1]-autocorr_values,color='red',alpha=0.2)
-
+    print(len(autocorr_values))
+    x = np.arange(0,len(autocorr_values)/4096,1/4096)
+    print(x)
+    print(len(x))
     plt.title('Autocorrelation Function')
-    plt.plot(autocorr_values,'.', color='royalblue')
-    plt.xlabel('Lag')
+    plt.plot(x,autocorr_values,'.', color='royalblue')
+    plt.xlabel('Lag [s]')
     plt.ylabel('ACF')
     plt.tight_layout()
     plt.savefig('figures/acf.png')

@@ -65,24 +65,9 @@ if __name__ == '__main__':
 	peaks = []
 	times = []
 
-	M_chirp = 25.29#23.28
-	q = 0.83#0.84
+	M_chirp = 23.27
+	q = 0.85
 
-	'''
-	# Get a frequency domain waveform
-	sptilde, sctilde = get_fd_waveform(approximant="TaylorF2",
-							 mass1=mass1_from_mchirp_q(M_chirp, q),
-							 mass2=mass2_from_mchirp_q(M_chirp, q),
-							 delta_f=1.0/4,
-							 f_lower=20)
-
-	# FFT it to the time-domain
-	delta_t = 1/4096
-	tlen = int(1.0 / delta_t / sptilde.delta_f)
-	sptilde.resize(tlen/2 + 1)
-	sp = TimeSeries(types.zeros(tlen), delta_t=delta_t)
-	fft.ifft(sptilde, sp)
-	'''
 
 	sp, sc = get_td_waveform(approximant="TaylorF2",
 						mass1=mass1_from_mchirp_q(M_chirp, q),
@@ -91,8 +76,16 @@ if __name__ == '__main__':
 						f_lower=20)
 
 
+
+	sp_imr, sc_imr = get_td_waveform(approximant="IMRPhenomPv2",
+						mass1=mass1_from_mchirp_q(31.89, 0.888),
+						mass2=mass2_from_mchirp_q(31.89, 0.888),
+						delta_t=conditioned.delta_t,
+						f_lower=20)
+
 	# We will resize the vector to match our data
 	sp.resize(len(conditioned))
+	sp_imr.resize(len(conditioned))
 
 	# The waveform begins at the start of the vector, so if we want the
 	# SNR time series to correspond to the approximate merger location
@@ -108,6 +101,7 @@ if __name__ == '__main__':
 	# merger stamped with time zero, so we can use the start time to
 	# shift the merger into position
 	template = sp.cyclic_time_shift(sp.start_time)
+	template_imr = sp_imr.cyclic_time_shift(sp_imr.start_time)
 
 
 	#4. calculating the signal-to-noise time series
@@ -115,6 +109,8 @@ if __name__ == '__main__':
 	snr = matched_filter(template, conditioned,
 					 psd=psd, low_frequency_cutoff=20)
 
+	snr_imr = matched_filter(template_imr, conditioned,
+					 psd=psd, low_frequency_cutoff=20)
 	# Remove time corrupted by the template filter and the psd filter
 	# We remove 4 seonds at the beginning and end for the PSD filtering
 	# And we remove 4 additional seconds at the beginning to account for
@@ -122,6 +118,7 @@ if __name__ == '__main__':
 	# so short a template). A longer signal such as from a BNS, would
 	# require much more padding at the beginning of the vector.
 	snr = snr.crop(4 + 4, 4)
+	snr_imr = snr_imr.crop(4 + 4, 4)
 
 	# Why are we taking an abs() here?
 	# The `matched_filter` function actually returns a 'complex' SNR.
@@ -140,8 +137,14 @@ if __name__ == '__main__':
 	plt.show()
 
 	peak = abs(snr).numpy().argmax()
+	peak_imr = abs(snr_imr).numpy().argmax()
+
 	snrp = snr[peak]
+	snrp_imr = snr_imr[peak_imr]
+
 	time = snr.sample_times[peak]
+	time_imr = snr_imr.sample_times[peak_imr]
+
 	Masses.append((M_chirp, q))
 	peaks.append(snrp)
 	times.append(time)
@@ -154,14 +157,21 @@ if __name__ == '__main__':
 
 	# Shift the template to the peak time
 	dt = time - conditioned.start_time
+	dt_imr = time_imr - conditioned.start_time
+
 	aligned = template.cyclic_time_shift(dt)
+	aligned_imr = template_imr.cyclic_time_shift(dt_imr)
 
 	# scale the template so that it would have SNR 1 in this data
 	aligned /= sigma(aligned, psd=psd, low_frequency_cutoff=20.0)
+	aligned_imr /= sigma(aligned_imr, psd=psd, low_frequency_cutoff=20.0)
 
 	# Scale the template amplitude and phase to the peak value
 	aligned = (aligned.to_frequencyseries() * snrp).to_timeseries()
+	aligned_imr = (aligned_imr.to_frequencyseries() * snrp_imr).to_timeseries()
+
 	aligned.start_time = conditioned.start_time
+	aligned_imr.start_time = conditioned.start_time
 
 
 	# 6. Visualize the overlap between the signal and data
@@ -174,13 +184,16 @@ if __name__ == '__main__':
 	# We do it this way so that we can whiten both the template and the data
 	white_data = (conditioned.to_frequencyseries() / psd**0.5).to_timeseries()
 	white_template = (aligned.to_frequencyseries() / psd**0.5).to_timeseries()
+	white_template_imr = (aligned_imr.to_frequencyseries() / psd**0.5).to_timeseries()
 
 	white_data = white_data.highpass_fir(30., 512).lowpass_fir(300, 512)
 	white_template = white_template.highpass_fir(30, 512).lowpass_fir(300, 512)
+	white_template_imr = white_template_imr.highpass_fir(30, 512).lowpass_fir(300, 512)
 
 	# Select the time around the merger
 	white_data = white_data.time_slice(t1-.2, t1+.1)
 	white_template = white_template.time_slice(t1-.2, t1+.1)
+	white_template_imr = white_template_imr.time_slice(t1-.2, t1+.1)
 
 	plt.figure(figsize=[12, 5])
 	plt.plot(white_data.sample_times, white_data, label="Data")
@@ -190,4 +203,16 @@ if __name__ == '__main__':
 	plt.legend()
 	plt.tight_layout()
 	plt.savefig('figures/data_vs_model.png')
+	plt.show()
+
+
+	plt.figure(figsize=[12, 5])
+	plt.plot(white_data.sample_times, white_data, label="Data")
+	plt.plot(white_template_imr.sample_times, white_template_imr, label="IMRPhenomPv2", color='rebeccapurple')
+	plt.xlabel("Time (s)")
+	plt.ylabel("Whitened Strain")
+	plt.title("Comparison between data and model (whitened and bandpassed)")
+	plt.legend()
+	plt.tight_layout()
+	plt.savefig('figures/data_vs_model2.png')
 	plt.show()

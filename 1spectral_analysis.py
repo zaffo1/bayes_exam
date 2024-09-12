@@ -33,10 +33,10 @@ if __name__=='__main__':
     plt.xlabel('Frequency [Hz]')
     plt.ylabel(r'S$_n$(f)')
     # Compute the PSD using Welch's method
-    freqs, Pxx_H1 = welch(data, fs=fs, nperseg=NFFT, window=psd_window, noverlap=NOVL)
+    freqs, Pxx_H1_full = welch(data, fs=fs, nperseg=NFFT, window=psd_window, noverlap=NOVL)
 
     # Plotting PSD with and without window
-    plt.plot(freqs, Pxx_H1, alpha=.8, linewidth=1.3, color = 'mediumpurple')
+    plt.plot(freqs, Pxx_H1_full, alpha=.8, linewidth=1.3, color = 'mediumpurple')
     plt.savefig('figures/pds_full.png')
     plt.show()
 
@@ -50,11 +50,9 @@ if __name__=='__main__':
     plt.yscale('log', base=10)
     plt.xlabel('Frequency [Hz]')
     plt.ylabel(r'S$_n$(f)')
-    # Compute the PSD using Welch's method
-    freqs, Pxx_H1 = welch(data, fs=fs, nperseg=NFFT, window=psd_window, noverlap=NOVL)
 
     # Plotting PSD
-    plt.plot(freqs, Pxx_H1, alpha=.8, linewidth=1.3, color = 'mediumpurple')
+    plt.plot(freqs, Pxx_H1_full, alpha=.8, linewidth=1.3, color = 'mediumpurple')
     plt.savefig('figures/pds_full_logscale.png')
     plt.show()
 
@@ -62,7 +60,7 @@ if __name__=='__main__':
     plt.figure(figsize=(12, 6))
     ax = plt.axes()
     plt.xlim(16,512)
-    plt.ylim(1e-47,1e-40)
+    plt.ylim(1e-47,1e-41)
     plt.xscale('log', base=2)
     plt.yscale('log', base=10)
     n_split = 10
@@ -70,12 +68,17 @@ if __name__=='__main__':
         # Compute the PSD using Welch's method
         freqs, Pxx_H1 = welch(k, fs=fs, nperseg=NFFT, window=psd_window, noverlap=NOVL)
         # Plotting PSD with and without window
-        plt.plot(freqs, Pxx_H1, label=f'Partition bin #{j+1}', alpha=.8, linewidth=1)
+        #plt.plot(freqs, Pxx_H1, label=f'Partition bin #{j+1}', alpha=.8, linewidth=1)
+        plt.plot(freqs, Pxx_H1, alpha=.5, linewidth=2)
+    plt.plot(freqs, Pxx_H1_full, alpha=1, linewidth=1,linestyle='--', color = 'black',label='PSD for the full 4069 seconds')
+    plt.title(f'{n_split} chunks of data')
+    plt.legend()
     plt.xlabel('Frequency [Hz]')
     plt.ylabel(r'S$_n$(f)')
-    plt.legend()
     plt.savefig('figures/pds_partition.png')
     plt.show()
+
+    exit()
 
     # ACF computation (unchanged)
     acf_array = acf(Pxx_H1, fft=True, nlags=50)

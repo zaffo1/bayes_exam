@@ -12,6 +12,9 @@ from gwpy.timeseries import TimeSeries
 
 
 if __name__=='__main__':
+    #APPROXIMANT = 'TaylorF2'
+    APPROXIMANT = 'IMRPhenomPv2'
+
     t0 = 1126257415
     time_of_event = 1126259462.4
     data = np.loadtxt('data/H-H1_GWOSC_4KHZ_R1-1126257415-4096.txt')
@@ -32,7 +35,7 @@ if __name__=='__main__':
 
     H1_analysis_data = strain.crop(analysis_start , analysis_start+duration)
 
-    #H1_analysis_data.plot()
+    #H1_analysis_data.plot(color='slateblue')
     #plt.ylabel('GW Amplitude ')
     #plt.savefig('figures/4seconds_around_GW150914')
     #plt.show()
@@ -109,7 +112,7 @@ if __name__=='__main__':
 
     # Next create a dictionary of arguments which we pass into the LALSimulation waveform - we specify the waveform approximant here
     waveform_arguments = dict(
-        waveform_approximant='TaylorF2', reference_frequency=100., catch_waveform_errors=True)
+        waveform_approximant=APPROXIMANT, reference_frequency=100., catch_waveform_errors=True)
 
     # Next, create a waveform_generator object. This wraps up some of the jobs of converting between parameters etc
     waveform_generator = bilby.gw.WaveformGenerator(
@@ -145,9 +148,16 @@ if __name__=='__main__':
     print(result_short.priors)
     Mc = result_short.posterior["chirp_mass"].values
     q = result_short.posterior["mass_ratio"].values
+    gtime = result_short.posterior["geocent_time"]
+    print(APPROXIMANT)
 
 
     # We can then get some useful quantities such as the 90% credible interval
+    lower_bound = np.quantile(gtime, 0.05)
+    upper_bound = np.quantile(gtime, 0.95)
+    median = np.quantile(gtime, 0.5)
+    print("geocent_time = {} with a 90% C.I = {} -> {}".format(median, lower_bound, upper_bound))
+
     lower_bound = np.quantile(Mc, 0.05)
     upper_bound = np.quantile(Mc, 0.95)
     median = np.quantile(Mc, 0.5)
@@ -159,7 +169,7 @@ if __name__=='__main__':
     ax.axvspan(lower_bound, upper_bound, color='mediumpurple', alpha=0.4)
     ax.axvline(median, color='darkviolet')
     ax.set_xlabel("chirp mass")
-    plt.savefig('figures/posterior_M.png')
+    plt.savefig(f'figures/posterior_M_{APPROXIMANT}.png')
     plt.show()
 
 
@@ -177,20 +187,20 @@ if __name__=='__main__':
     plt.show()
 
 
-    result_short.plot_corner(parameters=["chirp_mass", "mass_ratio", "geocent_time", "phase"], prior=True, save=False, color='rebeccapurple')
-    plt.savefig('figures/corner_plot_M_q_gt_ph.png')
+    result_short.plot_corner(parameters=["chirp_mass", "mass_ratio", "geocent_time", "phase"],quantiles=(0.05,0.95) ,prior=True, save=False, color='rebeccapurple')
+    plt.savefig(f'figures/corner_plot_M_q_gt_ph_{APPROXIMANT}.png')
     plt.show()
 
 
-    result_short.plot_corner(parameters=["chirp_mass", "mass_ratio"], prior=True, save=False, color='rebeccapurple')
-    plt.savefig('figures/corner_plot_M_q.png')
+    result_short.plot_corner(parameters=["chirp_mass", "mass_ratio"],quantiles=(0.05,0.95), prior=True, save=False, color='rebeccapurple')
+    plt.savefig(f'figures/corner_plot_M_q_{APPROXIMANT}.png')
     plt.show()
 
     parameters = dict(mass_1=36.2, mass_2=29.1)
-    fig = result_short.plot_corner(parameters, save=False, color='mediumvioletred')
-    plt.savefig('figures/corner_plot_m1_m2.png')
+    fig = result_short.plot_corner(parameters,quantiles=(0.05,0.95), save=False, color='mediumvioletred')
+    plt.savefig(f'figures/corner_plot_m1_m2_{APPROXIMANT}.png')
     plt.show()
-
 
     print("ln Bayes factor = {} +/- {}".format(
         result_short.log_bayes_factor, result_short.log_evidence_err))
+
